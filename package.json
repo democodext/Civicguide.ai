@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "node backend/index.mjs",
     "dev": "vite --config frontend/vite.config.ts",
     "server": "node backend/index.mjs",
     "build": "tsc -b frontend/tsconfig.json && vite build --config frontend/vite.config.ts",

@@ -1,13 +1,19 @@
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "64kb" }));
+
+// Serve static frontend files for production
+app.use(express.static(path.join(__dirname, "../dist")));
 
 const safetyInstruction = `You are CivicGuide AI, a neutral election process education assistant.
 You can explain registration, documents, timelines, polling-day preparation, accessibility, and official-source verification.
@@ -110,6 +116,11 @@ app.post("/api/assistant", async (request, response) => {
   }
 });
 
-app.listen(port, "127.0.0.1", () => {
-  console.log(`CivicGuide API running at http://127.0.0.1:${port}`);
+// Catch-all route to serve the React app
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../dist/index.html"));
+});
+
+app.listen(port, () => {
+  console.log(`CivicGuide API running at port ${port}`);
 });
