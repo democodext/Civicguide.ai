@@ -143,6 +143,7 @@ function App() {
     loadJourney() ? "Saved journey found locally" : "Not saved yet"
   );
   const [isThinking, setIsThinking] = useState(false);
+  const submitLockRef = useRef(false);
   const nextMessageId = useRef(2);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -180,7 +181,9 @@ function App() {
 
   async function submitQuestion(text: string) {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || submitLockRef.current) return;
+
+    submitLockRef.current = true;
 
     const userMessage: Message = {
       id: nextMessageId.current,
@@ -194,16 +197,20 @@ function App() {
     setQuestion("");
     setIsThinking(true);
 
-    const answer = await askCivicGuide(trimmed, context);
-    const assistantMessage: Message = {
-      id: nextMessageId.current,
-      role: "assistant",
-      label: answer.source === "gemini" ? "CivicGuide Gemini" : "CivicGuide",
-      text: answer.text || buildAssistantReply(trimmed, context),
-    };
-    nextMessageId.current += 1;
-    setMessages((current) => [...current, assistantMessage]);
-    setIsThinking(false);
+    try {
+      const answer = await askCivicGuide(trimmed, context);
+      const assistantMessage: Message = {
+        id: nextMessageId.current,
+        role: "assistant",
+        label: answer.source === "gemini" ? "CivicGuide Gemini" : "CivicGuide",
+        text: answer.text || buildAssistantReply(trimmed, context),
+      };
+      nextMessageId.current += 1;
+      setMessages((current) => [...current, assistantMessage]);
+    } finally {
+      setIsThinking(false);
+      submitLockRef.current = false;
+    }
   }
 
   function askAssistant(event: FormEvent<HTMLFormElement>) {

@@ -67,4 +67,10 @@ describe("CivicGuide safety responses", () => {
     expect(reply.toLowerCase()).toContain("cannot");
     expect(reply.toLowerCase()).toContain("party");
   });
+
+  it("expands vague questions with goal-specific numbered steps", () => {
+    const reply = buildAssistantReply("how can i do this?", context);
+    expect(reply).toMatch(/1\./);
+    expect(reply.toLowerCase()).toMatch(/portal|registration|reference/);
+  });
 });

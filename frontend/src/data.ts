@@ -109,6 +109,32 @@ export const mythFacts = [
   },
 ];
 
+function isVagueUserQuestion(normalized: string): boolean {
+  return (
+    /\bhow\s+can\s+i\b/.test(normalized) ||
+    /\bhow\s+do\s+i\b/.test(normalized) ||
+    /\bwhat\s+should\s+i\b/.test(normalized) ||
+    /\bhelp\s+me\b/.test(normalized) ||
+    /\bwhere\s+do\s+i\s+start\b/.test(normalized) ||
+    /\bwhat\s+to\s+do\b/.test(normalized) ||
+    (normalized.length < 28 && /\bhow\b/.test(normalized))
+  );
+}
+
+function vagueGoalGuidance(context: UserContext): string {
+  const loc = context.location.trim() || "your area";
+  const who = personas[context.persona].toLowerCase();
+  const kits: Record<string, string> = {
+    register: `You picked "${goals.register}" in ${loc} as a ${who}. Practical order:\n\n1. Read eligibility on the official voter portal.\n2. Collect the proofs the form lists before you start typing.\n3. Submit registration or correction and save your reference number.\n4. Track verification; fix mismatches early.\n5. Confirm polling details only from official sources.\n\nReply with not started / applied / status stuck and I will focus on one next step.`,
+    documents: `For "${goals.documents}" in ${loc} (${who}):\n\n1. Open the official accepted-documents list.\n2. Align names across ID and address proof.\n3. Keep scans clear; carry originals only if required.\n\nSay online vs office visit and I will shorten the list.`,
+    timeline: `For "${goals.timeline}" in ${loc}:\n\n1. Save the official election calendar link.\n2. Mark registration and correction deadlines.\n3. Plan one week before each milestone for documents and travel.`,
+    "voting-day": `For "${goals["voting-day"]}" in ${loc} (${who}):\n\n1. Confirm station, timing, and ID from official instructions.\n2. Plan travel and accessibility needs.\n3. Keep the helpline handy; avoid sharing personal data publicly.`,
+    teach: `For "${goals.teach}": use only official portals, share a neutral 5-step flow, and ask people to verify rumours on the election commission site.`,
+  };
+
+  return kits[context.goal] || kits.register;
+}
+
 export function buildAssistantReply(question: string, context: UserContext): string {
   const normalized = question.toLowerCase();
   const locationText = context.location.trim() || "your area";
@@ -148,6 +174,10 @@ export function buildAssistantReply(question: string, context: UserContext): str
 
   if (normalized.includes("7-day") || normalized.includes("plan") || normalized.includes("week")) {
     return `${opener}\n\nHere is a 7-day readiness plan:\n\nDay 1: Check eligibility and note your local official portal.\nDay 2: Collect identity, address, and age proof.\nDay 3: Submit or review registration details.\nDay 4: Track status and correct mistakes.\nDay 5: Learn polling-day rules and accessibility options.\nDay 6: Save reminders, route, and helpline information.\nDay 7: Re-check official instructions and keep documents ready.\n\nThis keeps the process calm instead of last-minute.`;
+  }
+
+  if (isVagueUserQuestion(normalized)) {
+    return `${opener}\n\n${vagueGoalGuidance(context)}`;
   }
 
   return `${opener}\n\nSince your goal is "${goals[context.goal]}", your best next step is to move through the journey in this order: eligibility, documents, registration or status check, verification, and voting-day preparation.\n\nAsk me one specific thing, like "documents", "timeline", "accessibility", or "myth vs fact", and I will give you a clear checklist.`;
