@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || 3001);
+const host = process.env.HOST || "0.0.0.0";
 const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 app.use(cors({ origin: true }));
@@ -121,6 +122,6 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
 
-app.listen(port, () => {
-  console.log(`CivicGuide API running at port ${port}`);
+app.listen(port, host, () => {
+  console.log(`CivicGuide API listening on http://${host}:${port}`);
 });
