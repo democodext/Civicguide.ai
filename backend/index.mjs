@@ -93,6 +93,29 @@ function isVagueQuestion(lower) {
   );
 }
 
+function wantsRegistrationOrApplicationStatus(lower) {
+  const mentionsRegistrOrRoll = /registr|epic|electoral|voter\s*id|voter\s*card|application\s+ref|form\s+ref|acknowledg/i.test(
+    lower
+  );
+  const statusIntent =
+    /\b(check|track|verify|status|response|pending|approved|rejected|waiting|result)\b/.test(lower) ||
+    /\b(my|where|did\s+my)\b/.test(lower);
+  return (
+    (mentionsRegistrOrRoll && statusIntent) ||
+    /\belectoral\s*search\b/.test(lower) ||
+    /\broll\s*search\b/.test(lower) ||
+    /\blookup\s+(my\s+)?(voter|registration)\b/.test(lower)
+  );
+}
+
+function registrationStatusAnswer(context) {
+  const location = (context?.location && String(context.location).trim()) || "your area";
+  const personaKey = context?.persona || "first-time";
+  const who = PERSONA_LABEL[personaKey] || "a voter";
+
+  return `Here is a neutral way to check your registration or application outcome in ${location} (${who}):\n\n1. Open the official voter services or electoral roll search portal for your country or state — use only the election commission website, not unofficial links.\n2. Use the option that matches what you have: EPIC / voter ID, mobile OTP, or application reference number.\n3. If you just submitted a form, allow the official processing time; keep your acknowledgement or reference ID private.\n4. If the status shows an error or mismatch, use the official correction or objection workflow instead of paying a third party.\n5. For polling-station details, rely on the same official portal or SMS/helpline formats published by the authority.\n\nTip: typos like "registretion" still mean registration — the important part is using the official search page. Tell me "online" or "office visit" and I can suggest what to carry next (without asking for your ID numbers here).`;
+}
+
 function goalBasedNextSteps(context) {
   const loc = (context?.location && String(context.location).trim()) || "your area";
   const goal = context?.goal || "register";
@@ -127,6 +150,10 @@ function localReply(message, context) {
 
   if (lower.includes("party") || lower.includes("candidate") || lower.includes("vote for")) {
     return "I cannot recommend a party or candidate. I can help you compare official manifestos, verify candidate details from official sources, and prepare for voting day without influencing your choice.";
+  }
+
+  if (wantsRegistrationOrApplicationStatus(lower)) {
+    return registrationStatusAnswer(context);
   }
 
   if (lower.includes("document") || lower.includes("id")) {
@@ -179,6 +206,12 @@ app.post("/api/assistant", assistantLimiter, async (request, response) => {
   }
 
   const context = sanitizeContext(request.body?.context);
+  const lowerMsg = message.toLowerCase();
+
+  if (wantsRegistrationOrApplicationStatus(lowerMsg)) {
+    response.json({ source: "registration-status", text: registrationStatusAnswer(context) });
+    return;
+  }
 
   if (!process.env.GEMINI_API_KEY) {
     response.json({ source: "local-fallback", text: localReply(message, context) });

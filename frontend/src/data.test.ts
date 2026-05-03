@@ -73,4 +73,10 @@ describe("CivicGuide safety responses", () => {
     expect(reply).toMatch(/1\./);
     expect(reply.toLowerCase()).toMatch(/portal|registration|reference/);
   });
+
+  it("handles registration status questions even with spelling mistakes", () => {
+    const reply = buildAssistantReply("i want check my registretion response", context);
+    expect(reply.toLowerCase()).toMatch(/official|electoral|epic|portal/);
+    expect(reply).toMatch(/1\./);
+  });
 });

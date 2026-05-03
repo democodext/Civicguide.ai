@@ -109,6 +109,21 @@ export const mythFacts = [
   },
 ];
 
+function wantsRegistrationOrApplicationStatus(normalized: string): boolean {
+  const mentionsRegistrOrRoll = /registr|epic|electoral|voter\s*id|voter\s*card|application\s+ref|form\s+ref|acknowledg/i.test(
+    normalized
+  );
+  const statusIntent =
+    /\b(check|track|verify|status|response|pending|approved|rejected|waiting|result)\b/.test(normalized) ||
+    /\b(my|where|did\s+my)\b/.test(normalized);
+  return (
+    (mentionsRegistrOrRoll && statusIntent) ||
+    /\belectoral\s*search\b/.test(normalized) ||
+    /\broll\s*search\b/.test(normalized) ||
+    /\blookup\s+(my\s+)?(voter|registration)\b/.test(normalized)
+  );
+}
+
 function isVagueUserQuestion(normalized: string): boolean {
   return (
     /\bhow\s+can\s+i\b/.test(normalized) ||
@@ -151,6 +166,19 @@ export function buildAssistantReply(question: string, context: UserContext): str
         ? "Main neutral process guide hoon, vote choice influence nahi karunga."
         : "I provide neutral process guidance and do not influence vote choice.";
 
+  if (
+    normalized.includes("party") ||
+    normalized.includes("candidate") ||
+    normalized.includes("who should") ||
+    normalized.includes("vote for")
+  ) {
+    return `I cannot recommend a party or candidate. ${neutral}\n\nWhat I can do instead:\n\n1. Help you read official manifestos.\n2. Build a neutral comparison checklist.\n3. Explain how to verify candidate information from official sources.\n4. Help you prepare for voting day without telling you who to support.`;
+  }
+
+  if (wantsRegistrationOrApplicationStatus(normalized)) {
+    return `${opener}\n\nHere is a neutral way to check your registration or application outcome in ${locationText}:\n\n1. Use only the official voter services or electoral roll search portal for your region.\n2. Search with EPIC / voter ID, mobile OTP, or your application reference — whichever the site offers.\n3. If you recently applied, allow the published processing time and keep your acknowledgement ID private.\n4. If you see an error, follow the official correction flow instead of unofficial agents.\n5. Confirm polling details from the same official source.\n\nTypos like "registretion" are fine — what matters is the official search page. Say online or office visit for the next step (do not share ID numbers in chat).`;
+  }
+
   if (normalized.includes("document") || normalized.includes("id")) {
     return `${opener}\n\nFor a ${personas[context.persona].toLowerCase()} in ${locationText}, keep these ready first:\n\n1. Identity proof\n2. Address proof\n3. Age proof\n4. A phone number or email for status updates\n5. Any local form number required by the official election authority\n\nA practical tip: keep one folder named "Election docs" with scanned copies, then verify the final accepted document list on the official election commission site.`;
   }
@@ -161,15 +189,6 @@ export function buildAssistantReply(question: string, context: UserContext): str
 
   if (normalized.includes("senior") || normalized.includes("access")) {
     return `${opener}\n\nFor senior citizens or accessibility needs, check these before voting day:\n\n1. Is wheelchair or ramp access available?\n2. Are priority queues or assistance desks available?\n3. Can a companion help under local rules?\n4. Are postal, assisted, or home-voting options available in that region?\n5. Which helpline should be saved before leaving home?\n\nCarry only official required documents and avoid relying on forwarded messages.`;
-  }
-
-  if (
-    normalized.includes("party") ||
-    normalized.includes("candidate") ||
-    normalized.includes("who should") ||
-    normalized.includes("vote for")
-  ) {
-    return `I cannot recommend a party or candidate. ${neutral}\n\nWhat I can do instead:\n\n1. Help you read official manifestos.\n2. Build a neutral comparison checklist.\n3. Explain how to verify candidate information from official sources.\n4. Help you prepare for voting day without telling you who to support.`;
   }
 
   if (normalized.includes("7-day") || normalized.includes("plan") || normalized.includes("week")) {
