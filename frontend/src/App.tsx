@@ -97,6 +97,12 @@ function CustomSelect({ label, value, options, onChange }: CustomSelectProps) {
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listId}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
           onClick={() => setOpen((current) => !current)}
         >
           <span>{activeOption?.label}</span>
@@ -224,6 +230,19 @@ function App() {
     window.open(target, "_blank", "noopener,noreferrer");
   }
 
+  function handleNewThread() {
+    nextMessageId.current = 2;
+    setMessages([
+      {
+        id: 1,
+        role: "assistant",
+        label: "CivicGuide",
+        text: firstMessage,
+      },
+    ]);
+    setQuestion("");
+  }
+
   const hashView =
     typeof window !== "undefined"
       ? window.location.hash.replace("#", "")
@@ -232,7 +251,10 @@ function App() {
   if (hashView === "journey" || hashView === "myths" || hashView === "safety") {
     return (
       <main className={context.accessibility ? "app standalone high-contrast" : "app standalone"}>
-        <section className="standalone-view">
+        <a className="skip-link" href="#standalone-main">
+          Skip to content
+        </a>
+        <section className="standalone-view" id="standalone-main" tabIndex={-1}>
           <header className="standalone-header">
             <div className="brand">
               <div className="brand-mark">
@@ -309,6 +331,9 @@ function App() {
 
   return (
     <main className={context.accessibility ? "app high-contrast" : "app"}>
+      <a className="skip-link" href="#assistant">
+        Skip to chat
+      </a>
       <aside className="sidebar" aria-label="CivicGuide navigation">
         <div className="brand">
           <div className="brand-mark">
@@ -320,14 +345,18 @@ function App() {
           </div>
         </div>
 
-        <button className="new-chat" type="button">
+        <button className="new-chat" type="button" onClick={handleNewThread}>
           <Plus size={16} />
           New Thread
         </button>
 
         <section className="persona-card">
-          <div
+          <button
+            type="button"
             className="persona-header"
+            aria-expanded={isPersonaExpanded}
+            aria-controls="persona-panel"
+            id="persona-toggle"
             style={{ cursor: "pointer", marginBottom: isPersonaExpanded ? "14px" : "0" }}
             onClick={() => setIsPersonaExpanded(!isPersonaExpanded)}
           >
@@ -341,9 +370,9 @@ function App() {
             <div style={{ marginLeft: "auto", display: "flex", color: "#a4a8b8" }}>
               {isPersonaExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </div>
-          </div>
+          </button>
           {isPersonaExpanded && (
-            <div className="persona-grid">
+            <div className="persona-grid" id="persona-panel" role="region" aria-labelledby="persona-toggle">
             <CustomSelect
               label="Persona"
               value={context.persona}
@@ -362,6 +391,8 @@ function App() {
                 value={context.location}
                 onChange={(event) => updateContext("location", event.target.value)}
                 placeholder="City, state, or country"
+                autoComplete="address-level2"
+                aria-label="Location for localized guidance"
               />
             </label>
             <CustomSelect
@@ -430,13 +461,11 @@ function App() {
           </div>
         </header>
 
-        <section className="upper-tabs">
-          <div className="tab-bar" role="tablist" aria-label="Additional information">
+        <section className="upper-tabs" aria-label="Reference panels">
+          <nav className="tab-bar" aria-label="Open reference information in a new browser tab">
             <button
               className="tab"
               type="button"
-              role="tab"
-              aria-selected="false"
               onClick={() => openInfoTab("journey")}
             >
               <Bot size={16} />
@@ -445,8 +474,6 @@ function App() {
             <button
               className="tab"
               type="button"
-              role="tab"
-              aria-selected="false"
               onClick={() => openInfoTab("myths")}
             >
               <Languages size={16} />
@@ -455,14 +482,12 @@ function App() {
             <button
               className="tab"
               type="button"
-              role="tab"
-              aria-selected="false"
               onClick={() => openInfoTab("safety")}
             >
               <ShieldCheck size={16} />
               Safety Rule
             </button>
-          </div>
+          </nav>
         </section>
 
         <section className={isFreshThread ? "content-shell fresh-layout" : "content-shell"}>

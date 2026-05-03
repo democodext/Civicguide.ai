@@ -62,6 +62,17 @@ npm run dev
 
 Then open the local URL shown by Vite.
 
+## Deploy on Google Cloud Run
+
+The repository includes a production `Dockerfile` that builds the Vite frontend and serves it with the Express API.
+
+1. Create a Cloud Run service in project **Civicguide** (or your GCP project) using **continuous deploy from GitHub** or `gcloud run deploy --source .`.
+2. Set environment variable **`GEMINI_API_KEY`** on the service for Gemini-backed answers (optional; local fallback works without it).
+3. Prefer region **`asia-south1`** (Mumbai) or another region close to users.
+4. Allow **public (unauthenticated)** access if judges need a direct HTTPS URL.
+
+**Google services in production:** Calendar and Maps open in new tabs from the UI; the assistant calls **Gemini** through the same-origin `/api/assistant` route so API keys stay on the server. Optional **Firebase** client config uses `VITE_FIREBASE_*` at build time when provided.
+
 ## Build
 
 ```bash

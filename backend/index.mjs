@@ -1,6 +1,7 @@
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -9,9 +10,58 @@ const app = express();
 const port = Number(process.env.PORT || 3001);
 const host = process.env.HOST || "0.0.0.0";
 const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const MAX_MESSAGE_LENGTH = 8000;
+
+const ALLOWED_PERSONAS = new Set(["first-time", "student", "senior", "busy", "educator"]);
+const ALLOWED_GOALS = new Set(["register", "documents", "timeline", "voting-day", "teach"]);
+const ALLOWED_LANGUAGES = new Set(["Hinglish", "English", "Hindi"]);
+
+app.set("trust proxy", 1);
+
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.googleapis.com https://www.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+  );
+  next();
+});
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "64kb" }));
+
+const assistantLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function sanitizeContext(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  const out = {};
+  if (typeof raw.persona === "string" && ALLOWED_PERSONAS.has(raw.persona)) {
+    out.persona = raw.persona;
+  }
+  if (typeof raw.goal === "string" && ALLOWED_GOALS.has(raw.goal)) {
+    out.goal = raw.goal;
+  }
+  if (typeof raw.location === "string") {
+    out.location = raw.location.trim().slice(0, 200);
+  }
+  if (typeof raw.language === "string" && ALLOWED_LANGUAGES.has(raw.language)) {
+    out.language = raw.language;
+  }
+  if (typeof raw.accessibility === "boolean") {
+    out.accessibility = raw.accessibility;
+  }
+  return out;
+}
 
 // Serve static frontend files for production
 app.use(express.static(path.join(__dirname, "../dist")));
@@ -59,12 +109,25 @@ app.get("/api/health", (_request, response) => {
   response.json({ ok: true, geminiConfigured: Boolean(process.env.GEMINI_API_KEY) });
 });
 
-app.post("/api/assistant", async (request, response) => {
-  const { message, context } = request.body || {};
-  if (!message || typeof message !== "string") {
+app.post("/api/assistant", assistantLimiter, async (request, response) => {
+  const rawMessage = request.body?.message;
+  if (typeof rawMessage !== "string") {
     response.status(400).json({ error: "Message is required." });
     return;
   }
+
+  const message = rawMessage.trim();
+  if (!message) {
+    response.status(400).json({ error: "Message is required." });
+    return;
+  }
+
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    response.status(400).json({ error: `Message must be at most ${MAX_MESSAGE_LENGTH} characters.` });
+    return;
+  }
+
+  const context = sanitizeContext(request.body?.context);
 
   if (!process.env.GEMINI_API_KEY) {
     response.json({ source: "local-fallback", text: localReply(message, context) });
